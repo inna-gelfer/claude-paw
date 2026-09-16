@@ -144,7 +144,8 @@ var baseAlpha: CGFloat = 1
 var lastNag: Double = 0
 var glowWindows: [NSWindow] = []
 
-/// A pulsing border around every screen. Click-through, so it never blocks work.
+/// A soft pulsing glow along the top edge of every screen, where the badge lives.
+/// Click-through, so the menu bar underneath still works.
 func glow(_ on: Bool) {
     guard on else {
         glowWindows.forEach { $0.orderOut(nil) }
@@ -156,22 +157,28 @@ func glow(_ on: Bool) {
     let (_, skin) = persona()
     let color = hex((skin["colors"] as? [String: String] ?? [:])["waiting"] ?? "#FF9500")
     for screen in NSScreen.screens {
-        let w = NSWindow(contentRect: screen.frame, styleMask: .borderless,
+        let h: CGFloat = 10
+        let strip = NSRect(x: screen.frame.minX, y: screen.frame.maxY - h,
+                           width: screen.frame.width, height: h)
+        let w = NSWindow(contentRect: strip, styleMask: .borderless,
                          backing: .buffered, defer: false)
         w.level = .screenSaver
         w.backgroundColor = .clear
         w.isOpaque = false
         w.ignoresMouseEvents = true
         w.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
-        let v = NSView(frame: NSRect(origin: .zero, size: screen.frame.size))
+        let v = NSView(frame: NSRect(origin: .zero, size: strip.size))
         v.wantsLayer = true
-        v.layer?.borderWidth = 12
-        v.layer?.borderColor = color.cgColor
-        v.layer?.cornerRadius = 20
+        let g = CAGradientLayer()
+        g.frame = v.bounds
+        g.colors = [color.withAlphaComponent(0.8).cgColor, color.withAlphaComponent(0).cgColor]
+        g.startPoint = CGPoint(x: 0.5, y: 1)
+        g.endPoint = CGPoint(x: 0.5, y: 0)
+        v.layer?.addSublayer(g)
         let pulse = CABasicAnimation(keyPath: "opacity")
-        pulse.fromValue = 0.2
-        pulse.toValue = 1
-        pulse.duration = 0.9
+        pulse.fromValue = 0.25
+        pulse.toValue = 0.85
+        pulse.duration = 1.4
         pulse.autoreverses = true
         pulse.repeatCount = .infinity
         v.layer?.add(pulse, forKey: "pulse")

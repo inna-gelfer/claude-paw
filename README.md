@@ -7,7 +7,7 @@ A menu-bar pet that tells you which Claude Code / Codex sessions need you.
 - The session you are currently looking at never badges — you are already on it
 - Notification banners with sound, per persona
 - **Attention levels** (optional, off by default) — Menu > Attention:
-  `blink` pulses the menu-bar icon · `glow` pulses a border around every screen ·
+  `blink` pulses the menu-bar icon · `glow` pulses a soft band along the top edge of every screen ·
   `loud` glows and repeats the persona sound every 20s until you deal with it.
   Only fires while something is actually pending, and the glow is click-through.
 - 13 personas (cat, dog, ghost, duck, robot, plant, coffee, dragon, startrek, pinkybrain, ibp, memes, friends)
