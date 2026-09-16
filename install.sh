@@ -53,7 +53,10 @@ shim = os.path.join(d, "codex-notify.py")
 s = open(cfg).read()
 m = re.search(r'^notify = (\[.*\])$', s, re.M)
 line = 'notify = ["python3", "%s", "turn-ended"]' % shim
-if m and shim in m.group(1):
+# codex nests a previous notify program as an escaped JSON string, so drop every
+# backslash before looking for ourselves - missing it chains paw to a program
+# whose own --previous-notify calls paw back
+if m and shim in m.group(1).replace("\\", ""):
     print("   already wired")
 elif m:
     json.dump(json.loads(m.group(1)), open(os.path.join(d, "codex-chain.json"), "w"))
