@@ -130,6 +130,57 @@ func art(_ skin: [String: Any], _ state: String) -> NSImage? {
     return img
 }
 
+// How hard the badge nags while something is pending: off|blink|glow|loud.
+// Opt-in, one word in ~/.claude/paw/attention. Menu > Attention to switch.
+let levels = ["off", "blink", "glow", "loud"]
+func attention() -> String {
+    let v = (try? String(contentsOfFile: dir + "/attention", encoding: .utf8))?
+        .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    return levels.contains(v) ? v : "off"
+}
+
+var pending = false      // something wants you: drives blink, glow and the nag sound
+var baseAlpha: CGFloat = 1
+var lastNag: Double = 0
+var glowWindows: [NSWindow] = []
+
+/// A pulsing border around every screen. Click-through, so it never blocks work.
+func glow(_ on: Bool) {
+    guard on else {
+        glowWindows.forEach { $0.orderOut(nil) }
+        glowWindows = []
+        return
+    }
+    guard glowWindows.count != NSScreen.screens.count else { return }
+    glow(false)
+    let (_, skin) = persona()
+    let color = hex((skin["colors"] as? [String: String] ?? [:])["waiting"] ?? "#FF9500")
+    for screen in NSScreen.screens {
+        let w = NSWindow(contentRect: screen.frame, styleMask: .borderless,
+                         backing: .buffered, defer: false)
+        w.level = .screenSaver
+        w.backgroundColor = .clear
+        w.isOpaque = false
+        w.ignoresMouseEvents = true
+        w.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
+        let v = NSView(frame: NSRect(origin: .zero, size: screen.frame.size))
+        v.wantsLayer = true
+        v.layer?.borderWidth = 12
+        v.layer?.borderColor = color.cgColor
+        v.layer?.cornerRadius = 20
+        let pulse = CABasicAnimation(keyPath: "opacity")
+        pulse.fromValue = 0.2
+        pulse.toValue = 1
+        pulse.duration = 0.9
+        pulse.autoreverses = true
+        pulse.repeatCount = .infinity
+        v.layer?.add(pulse, forKey: "pulse")
+        w.contentView = v
+        w.orderFrontRegardless()
+        glowWindows.append(w)
+    }
+}
+
 func updateBadge() {
     let (_, skin) = persona()
     let r = visibleRows()
@@ -137,7 +188,17 @@ func updateBadge() {
     let live = counts[0] > 0 ? "waiting" : (counts[1] > 0 ? "done" : (counts[2] > 0 ? "working" : "idle"))
     let n = counts.first(where: { $0 > 0 }) ?? 0
     guard let b = item.button else { return }
-    b.alphaValue = live == "idle" || live == "working" ? 0.55 : 1
+    pending = live == "waiting" || live == "done"
+    let mode = attention()
+    baseAlpha = pending ? 1 : 0.55
+    b.alphaValue = baseAlpha
+    glow(pending && (mode == "glow" || mode == "loud"))
+    // loud repeats the persona sound until you deal with it
+    let now = Date().timeIntervalSince1970
+    if pending, mode == "loud", now - lastNag > 20 {
+        lastNag = now
+        shell("afplay /System/Library/Sounds/\(skin["sound"] as? String ?? "Glass").aiff &")
+    }
     if let image = art(skin, live) {
         b.image = image
         b.imagePosition = .imageLeading
@@ -179,6 +240,18 @@ class Handler: NSObject, NSMenuDelegate {
         }
         pm.submenu = sub
         menu.addItem(pm)
+        let am = NSMenuItem(title: "Attention", action: nil, keyEquivalent: "")
+        let asub = NSMenu()
+        let now = attention()
+        for l in levels {
+            let mi = NSMenuItem(title: l, action: #selector(setAttention(_:)), keyEquivalent: "")
+            mi.target = self
+            mi.representedObject = l
+            mi.state = (l == now) ? .on : .off
+            asub.addItem(mi)
+        }
+        am.submenu = asub
+        menu.addItem(am)
         let q = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
         q.target = self
         menu.addItem(q)
@@ -196,6 +269,11 @@ class Handler: NSObject, NSMenuDelegate {
             .write(toFile: dir + "/persona", atomically: true, encoding: .utf8)
         updateBadge()
     }
+    @objc func setAttention(_ sender: NSMenuItem) {
+        try? (sender.representedObject as? String ?? "off")
+            .write(toFile: dir + "/attention", atomically: true, encoding: .utf8)
+        updateBadge()
+    }
     @objc func quit() { NSApp.terminate(nil) }
 }
 
@@ -207,4 +285,10 @@ item.menu = menu
 NSApplication.shared.setActivationPolicy(.accessory)
 updateBadge()
 Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in updateBadge() }
+var blinkDim = false
+Timer.scheduledTimer(withTimeInterval: 0.55, repeats: true) { _ in
+    let mode = attention()
+    blinkDim = (pending && (mode == "blink" || mode == "loud")) ? !blinkDim : false
+    item.button?.alphaValue = blinkDim ? 0.15 : baseAlpha
+}
 NSApplication.shared.run()

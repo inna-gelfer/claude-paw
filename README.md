@@ -6,6 +6,10 @@ A menu-bar pet that tells you which Claude Code / Codex sessions need you.
 - Click a session in the menu to jump straight to its terminal tab
 - The session you are currently looking at never badges — you are already on it
 - Notification banners with sound, per persona
+- **Attention levels** (optional, off by default) — Menu > Attention:
+  `blink` pulses the menu-bar icon · `glow` pulses a border around every screen ·
+  `loud` glows and repeats the persona sound every 20s until you deal with it.
+  Only fires while something is actually pending, and the glow is click-through.
 - 13 personas (cat, dog, ghost, duck, robot, plant, coffee, dragon, startrek, pinkybrain, ibp, memes, friends)
 
 ## Install
@@ -38,7 +42,7 @@ Linux and Windows are not supported.
 
 | Path | |
 |---|---|
-| `~/.claude/paw/` | app, personas, per-session state |
+| `~/.claude/paw/` | app, personas, attention level, per-session state |
 | `~/.claude/hooks/paw.py` | the hook |
 | `~/.claude/settings.json` | 4 hook entries (backed up to `.paw-bak`) |
 | `~/.codex/config.toml` | `notify` line, only if the file exists (backed up to `.paw-bak`) |
@@ -55,4 +59,5 @@ optional catchphrases. For real art instead of emoji add `"icon": "myname"` and 
 
 - **No icon in the menu bar** — `launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.paw.badge.plist`, or check the build succeeded.
 - **No banners** — `brew install terminal-notifier`, and allow notifications for it in System Settings.
+- **Glow doesn't appear** — it only shows while a session is waiting or done, never while they work.
 - **Sessions all show a folder name** — that's the no-herdr fallback, working as intended.
