@@ -1,0 +1,127 @@
+{
+  "cat": {
+    "waiting": "🙀",
+    "done": "😸",
+    "idle": "😴",
+    "sound": "Purr",
+    "wait_say": "needs you",
+    "done_say": "all done",
+    "working": "🐾"
+  },
+  "dog": {
+    "waiting": "🐶",
+    "done": "🦴",
+    "idle": "💤",
+    "sound": "Submarine",
+    "wait_say": "who's a blocked agent? you are!",
+    "done_say": "fetched it",
+    "working": "🐕"
+  },
+  "ghost": {
+    "waiting": "👻",
+    "done": "🕯️",
+    "idle": "🌙",
+    "sound": "Hero",
+    "wait_say": "boo — input required",
+    "done_say": "vanished, work's done",
+    "working": "🌀"
+  },
+  "duck": {
+    "waiting": "🦆",
+    "done": "🐣",
+    "idle": "🥚",
+    "sound": "Frog",
+    "wait_say": "quack. decision needed",
+    "done_say": "hatched",
+    "working": "🏊"
+  },
+  "robot": {
+    "waiting": "🤖",
+    "done": "✅",
+    "idle": "🔌",
+    "sound": "Ping",
+    "wait_say": "awaiting operator input",
+    "done_say": "task complete",
+    "working": "⚙️"
+  },
+  "plant": {
+    "waiting": "🌱",
+    "done": "🌻",
+    "idle": "🪴",
+    "sound": "Bottle",
+    "wait_say": "needs watering",
+    "done_say": "bloomed",
+    "working": "🌿"
+  },
+  "coffee": {
+    "waiting": "☕",
+    "done": "🍩",
+    "idle": "😪",
+    "sound": "Pop",
+    "wait_say": "refill required",
+    "done_say": "brewed",
+    "working": "⏳"
+  },
+  "dragon": {
+    "waiting": "🐲",
+    "done": "🔥",
+    "idle": "💤",
+    "sound": "Sosumi",
+    "wait_say": "the hoard awaits your word",
+    "done_say": "scorched it",
+    "working": "🐉"
+  },
+  "startrek": {
+    "waiting": "🖖",
+    "done": "🛸",
+    "idle": "🌌",
+    "sound": "Hero",
+    "wait_say": "bridge to captain — hailing you",
+    "done_say": "mission accomplished, captain",
+    "icon": "delta",
+    "colors": {
+      "waiting": "#FF3B30",
+      "done": "#FFC917",
+      "idle": "#7F8489",
+      "working": "#0A84FF"
+    },
+    "working": "🚀"
+  },
+  "pinkybrain": {
+    "waiting": "🧠",
+    "done": "🐭",
+    "idle": "🌙",
+    "sound": "Frog",
+    "wait_say": "what are we going to do tonight, Brain?",
+    "done_say": "the same thing we do every night — taking over the world",
+    "working": "🔬"
+  },
+  "ibp": {
+    "waiting": "🕴️",
+    "done": "💼",
+    "idle": "🛋️",
+    "sound": "Basso",
+    "wait_say": "circling back — I need a decision from you",
+    "done_say": "delivered. let's take the rest offline",
+    "working": "📊"
+  },
+  "memes": {
+    "waiting": "🗿",
+    "working": "🔥",
+    "done": "😎",
+    "idle": "💤",
+    "sound": "Funk",
+    "icon": "meme",
+    "wait_say": "ждун has been waiting. your move",
+    "done_say": "task failed successfully"
+  },
+  "friends": {
+    "waiting": "☕",
+    "working": "🛋️",
+    "done": "🦞",
+    "idle": "🐥",
+    "sound": "Pop",
+    "wait_say": "WE WERE ON A BREAK! (answer me)",
+    "done_say": "could I BE any more finished?"
+  }
+}
