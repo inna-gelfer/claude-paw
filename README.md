@@ -12,7 +12,8 @@ A menu-bar pet that tells you which Claude Code / Codex sessions need you.
   Only fires while something is actually pending, and the glow is click-through.
 - **Plan usage** in the menu for both agents — Claude's 5-hour and weekly windows, Codex's
   window, each with the time it resets. No API calls: Claude's numbers ride in on the
-  statusline payload, Codex's come from its own session logs.
+  statusline payload, Codex's come from its own session logs. Menu > Show usage hides them
+  (`off` in `~/.claude/paw/usage`); the numbers keep updating underneath.
 - 13 personas (cat, dog, ghost, duck, robot, plant, coffee, dragon, startrek, pinkybrain, ibp, memes, friends)
 
 ## Install

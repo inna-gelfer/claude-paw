@@ -81,6 +81,14 @@ func resetsAt(_ v: Any?) -> String {
     return " · resets " + f.string(from: d)
 }
 
+/// Usage rows are opt-out: one word in ~/.claude/paw/usage, Menu > Show usage.
+/// Only the display stops - the harvesters keep the numbers current either way.
+func showUsage() -> Bool {
+    let v = (try? String(contentsOfFile: dir + "/usage", encoding: .utf8))?
+        .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    return v != "off"
+}
+
 /// Plan usage per agent. Claude's arrives on the statusline, codex's from its
 /// session log - both stop updating when you stop using that agent, so a
 /// reading older than a day is dropped rather than shown as current.
@@ -263,7 +271,7 @@ class Handler: NSObject, NSMenuDelegate {
         if menu.items.isEmpty {
             menu.addItem(NSMenuItem(title: "nothing pending", action: nil, keyEquivalent: ""))
         }
-        let usage = usageRows()
+        let usage = showUsage() ? usageRows() : []
         if !usage.isEmpty {
             menu.addItem(.separator())
             for u in usage {
@@ -300,6 +308,10 @@ class Handler: NSObject, NSMenuDelegate {
         }
         am.submenu = asub
         menu.addItem(am)
+        let um = NSMenuItem(title: "Show usage", action: #selector(toggleUsage), keyEquivalent: "")
+        um.target = self
+        um.state = showUsage() ? .on : .off
+        menu.addItem(um)
         let q = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
         q.target = self
         menu.addItem(q)
@@ -321,6 +333,10 @@ class Handler: NSObject, NSMenuDelegate {
         try? (sender.representedObject as? String ?? "off")
             .write(toFile: dir + "/attention", atomically: true, encoding: .utf8)
         updateBadge()
+    }
+    @objc func toggleUsage() {
+        try? (showUsage() ? "off" : "on")
+            .write(toFile: dir + "/usage", atomically: true, encoding: .utf8)
     }
     @objc func quit() { NSApp.terminate(nil) }
 }
