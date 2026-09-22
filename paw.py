@@ -22,6 +22,39 @@ key = hook.get("session_id") or pane_id or "unknown"
 path = os.path.join(DIR, key.replace(":", "-") + ".json")
 os.makedirs(DIR, exist_ok=True)
 
+def codex_usage():
+    """Codex reports its own limits in its session log - newest one wins, 60s TTL."""
+    out = os.path.join(DIR, "usage-codex.json")
+    try:
+        if time.time() - os.path.getmtime(out) < 60:
+            return
+    except OSError:
+        pass
+    sessions = os.path.expanduser(os.environ.get("CODEX_HOME", "~/.codex") + "/sessions")
+    logs = []
+    for root, _, files in os.walk(sessions):
+        logs += [os.path.join(root, f) for f in files if f.endswith(".jsonl")]
+    for log in sorted(logs, key=os.path.getmtime, reverse=True)[:5]:
+        with open(log, "rb") as f:
+            f.seek(max(0, os.path.getsize(log) - 512 * 1024))
+            lines = [l for l in f.read().splitlines() if b'"rate_limits"' in l]
+        for line in reversed(lines):
+            try:
+                r = json.loads(line)["payload"]["rate_limits"]["primary"]
+                pct = r["used_percent"]
+            except Exception:
+                continue
+            with open(out, "w") as f:
+                json.dump({"pct": pct, "window": r.get("window_minutes"),
+                           "reset": r.get("resets_at"), "at": time.time()}, f)
+            return
+
+
+try:
+    codex_usage()
+except Exception:
+    pass  # usage is a nicety; never let it break the badge
+
 if state == "clear":
     try:
         os.remove(path)

@@ -10,6 +10,9 @@ A menu-bar pet that tells you which Claude Code / Codex sessions need you.
   `blink` pulses the menu-bar icon · `glow` pulses a soft band along the top edge of every screen ·
   `loud` glows and repeats the persona sound every 20s until you deal with it.
   Only fires while something is actually pending, and the glow is click-through.
+- **Plan usage** in the menu for both agents — Claude's 5-hour and weekly windows, Codex's
+  window, each with the time it resets. No API calls: Claude's numbers ride in on the
+  statusline payload, Codex's come from its own session logs.
 - 13 personas (cat, dog, ghost, duck, robot, plant, coffee, dragon, startrek, pinkybrain, ibp, memes, friends)
 
 ## Install
@@ -44,7 +47,7 @@ Linux and Windows are not supported.
 |---|---|
 | `~/.claude/paw/` | app, personas, attention level, per-session state |
 | `~/.claude/hooks/paw.py` | the hook |
-| `~/.claude/settings.json` | 4 hook entries (backed up to `.paw-bak`) |
+| `~/.claude/settings.json` | 4 hook entries and the `statusLine` slot (backed up to `.paw-bak`; your existing status line is kept and still renders) |
 | `~/.codex/config.toml` | `notify` line, only if the file exists (backed up to `.paw-bak`) |
 | `~/Library/LaunchAgents/com.paw.badge.plist` | keeps the app running |
 
@@ -60,4 +63,9 @@ optional catchphrases. For real art instead of emoji add `"icon": "myname"` and 
 - **No icon in the menu bar** — `launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.paw.badge.plist`, or check the build succeeded.
 - **No banners** — `brew install terminal-notifier`, and allow notifications for it in System Settings.
 - **Glow doesn't appear** — it only shows while a session is waiting or done, never while they work.
+- **No usage numbers** — they appear once each agent runs again: Claude's on the next statusline render, Codex's on its next turn. Readings over a day old are hidden rather than shown as current.
 - **Sessions all show a folder name** — that's the no-herdr fallback, working as intended.
+
+## Credits
+
+The plan-usage harvester follows [alchemmist/tmux-agent-usage](https://github.com/alchemmist/tmux-agent-usage) (MIT) — same cache-and-chain approach, same freshness rule for the snapshots idle sessions replay.

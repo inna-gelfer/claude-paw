@@ -16,10 +16,10 @@ command -v swiftc >/dev/null || { echo "need the Xcode command line tools: xcode
 DIR="$HOME/.claude/paw"
 mkdir -p "$DIR/icons" "$HOME/.claude/hooks"
 
-cp "$SRC/menubar.swift" "$SRC/codex-notify.py" "$SRC/uninstall.sh" "$DIR/"
+cp "$SRC/menubar.swift" "$SRC/codex-notify.py" "$SRC/paw-status.py" "$SRC/uninstall.sh" "$DIR/"
 cp "$SRC"/icons/*.png "$DIR/icons/" 2>/dev/null || true
 cp "$SRC/paw.py" "$HOME/.claude/hooks/paw.py"
-chmod +x "$DIR/codex-notify.py" "$DIR/uninstall.sh" "$HOME/.claude/hooks/paw.py"
+chmod +x "$DIR/codex-notify.py" "$DIR/paw-status.py" "$DIR/uninstall.sh" "$HOME/.claude/hooks/paw.py"
 [ -f "$DIR/personas.json" ] || cp "$SRC/personas.json" "$DIR/"   # keep local edits
 [ -f "$DIR/persona" ] || echo cat > "$DIR/persona"
 
@@ -42,6 +42,24 @@ for event, arg in [("Notification", "waiting"), ("Stop", "done"),
     h[event] = kept
 json.dump(s, open(p, "w"), indent=2)
 PY
+
+echo "==> registering usage harvester in the statusline slot"
+python3 - "$HOME" "$DIR" <<'SL'
+import json, os, sys
+home, d = sys.argv[1], sys.argv[2]
+p = os.path.join(home, ".claude", "settings.json")
+s = json.load(open(p))
+cur = s.get("statusLine") or {}
+# never record ourselves as the line to chain to - that is how you build a loop
+if "paw-status.py" in cur.get("command", ""):
+    print("   already wired")
+else:
+    if cur.get("command"):
+        json.dump(cur, open(os.path.join(d, "statusline-original.json"), "w"))
+        print("   chained to your existing statusline")
+    s["statusLine"] = {"type": "command", "command": 'python3 "%s/paw-status.py"' % d}
+    json.dump(s, open(p, "w"), indent=2)
+SL
 
 CFG="$HOME/.codex/config.toml"
 if [ -f "$CFG" ]; then
@@ -81,8 +99,15 @@ cat > "$PLIST" <<PLISTEOF
   <key>KeepAlive</key><true/>
 </dict></plist>
 PLISTEOF
-launchctl bootout "gui/$UID/com.paw.badge" 2>/dev/null || true
-launchctl bootstrap "gui/$UID" "$PLIST"
+# bootout is async, so a bootstrap right behind it loses the race with an
+# "Input/output error" - restart in place when the job is already registered
+if launchctl print "gui/$UID/com.paw.badge" >/dev/null 2>&1; then
+  launchctl kickstart -k "gui/$UID/com.paw.badge"
+else
+  launchctl bootstrap "gui/$UID" "$PLIST" 2>/dev/null ||
+    { launchctl bootout "gui/$UID/com.paw.badge" 2>/dev/null; sleep 1
+      launchctl bootstrap "gui/$UID" "$PLIST"; }
+fi
 
 command -v terminal-notifier >/dev/null || echo "!! brew install terminal-notifier  (for banners with click-to-jump)"
 command -v herdr >/dev/null || echo "!! no herdr: sessions show their folder name, clicks raise the app not the tab"

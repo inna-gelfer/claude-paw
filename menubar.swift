@@ -68,6 +68,38 @@ func visibleRows() -> [Row] {
     return all.filter { $0.pane != focused }
 }
 
+/// "5h" / "7d" from a window length in minutes.
+func window(_ minutes: Int) -> String {
+    minutes >= 1440 ? "\(minutes / 1440)d" : "\(minutes / 60)h"
+}
+
+func resetsAt(_ v: Any?) -> String {
+    guard let epoch = v as? Double, epoch > 0 else { return "" }
+    let d = Date(timeIntervalSince1970: epoch)
+    let f = DateFormatter()
+    f.dateFormat = d.timeIntervalSinceNow < 24 * 3600 ? "HH:mm" : "EEE HH:mm"
+    return " · resets " + f.string(from: d)
+}
+
+/// Plan usage per agent. Claude's arrives on the statusline, codex's from its
+/// session log - both stop updating when you stop using that agent, so a
+/// reading older than a day is dropped rather than shown as current.
+func usageRows() -> [String] {
+    var out: [String] = []
+    let c = json(dir + "/usage-claude.json")
+    if let five = c["five"] as? Double, Date().timeIntervalSince1970 - (c["at"] as? Double ?? 0) < 86400 {
+        var line = String(format: "claude   5h %.0f%%", five)
+        if let week = c["week"] as? Double { line += String(format: " · 7d %.0f%%", week) }
+        out.append(line + resetsAt(c["five_reset"]))
+    }
+    let x = json(dir + "/usage-codex.json")
+    if let pct = x["pct"] as? Double, Date().timeIntervalSince1970 - (x["at"] as? Double ?? 0) < 86400 {
+        let w = window(x["window"] as? Int ?? 10080)
+        out.append(String(format: "codex    %@ %.0f%%", w, pct) + resetsAt(x["reset"]))
+    }
+    return out
+}
+
 func ago(_ t: Double) -> String {
     let m = Int((Date().timeIntervalSince1970 - t) / 60)
     return m < 1 ? "just now" : (m < 60 ? "\(m)m ago" : "\(m / 60)h ago")
@@ -230,6 +262,15 @@ class Handler: NSObject, NSMenuDelegate {
         }
         if menu.items.isEmpty {
             menu.addItem(NSMenuItem(title: "nothing pending", action: nil, keyEquivalent: ""))
+        }
+        let usage = usageRows()
+        if !usage.isEmpty {
+            menu.addItem(.separator())
+            for u in usage {
+                let mi = NSMenuItem(title: u, action: nil, keyEquivalent: "")
+                mi.isEnabled = false
+                menu.addItem(mi)
+            }
         }
         menu.addItem(.separator())
         let pm = NSMenuItem(title: "Persona", action: nil, keyEquivalent: "")
