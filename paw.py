@@ -144,14 +144,6 @@ pane = herdr_pane()
 if not hook.get("session_id") and pane.get("pane_id"):
     key = pane["pane_id"]
     path = os.path.join(DIR, key.replace(":", "-") + ".json")
-# Two guesses at this bug already: record which resolution path actually ran.
-try:
-    with open(os.path.join(DIR, "hook.log"), "a") as f:
-        f.write("%s state=%s agent=%s key=%s env_pane=%s herdr=%s -> pane=%s tab=%s\n" % (
-            time.strftime("%H:%M:%S"), state, hook.get("agent") or "claude", key,
-            pane_id or "-", bool(HERDR), pane.get("pane_id", "-"), pane.get("tab_id", "-")))
-except Exception:
-    pass
 title = pane.get("terminal_title_stripped") or os.path.basename(hook.get("cwd") or os.getcwd())
 space = workspace_label(pane.get("workspace_id"))
 name = "%s · %s" % (space, title) if space else title

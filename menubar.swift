@@ -320,17 +320,7 @@ class Handler: NSObject, NSMenuDelegate {
     // Jumping to a session counts as attending to it, so its badge clears.
     @objc func jump(_ sender: NSMenuItem) {
         guard let v = sender.representedObject as? [String] else { return }
-        if !v[0].isEmpty {
-            let line = ISO8601DateFormatter().string(from: Date()) + " " + v[0] + "\n"
-            if let h = FileHandle(forWritingAtPath: dir + "/jump.log") ??
-                (FileManager.default.createFile(atPath: dir + "/jump.log", contents: nil)
-                 ? FileHandle(forWritingAtPath: dir + "/jump.log") : nil) {
-                h.seekToEndOfFile()
-                h.write(line.data(using: .utf8)!)
-                try? h.close()
-            }
-            shell(v[0])
-        }
+        if !v[0].isEmpty { shell(v[0]) }
         try? FileManager.default.removeItem(atPath: v[1])
         updateBadge()
     }
