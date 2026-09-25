@@ -108,6 +108,11 @@ except Exception:
 skin = personas.get(current) or {"waiting": "🙀", "done": "😸", "sound": "Glass"}
 
 pane = herdr_pane()
+# Without HERDR_PANE_ID every codex session keys on "unknown" and they overwrite
+# each other - once the pane is resolved, it is the identity.
+if key == "unknown" and pane.get("pane_id"):
+    key = pane["pane_id"]
+    path = os.path.join(DIR, key.replace(":", "-") + ".json")
 # Two guesses at this bug already: record which resolution path actually ran.
 try:
     with open(os.path.join(DIR, "hook.log"), "a") as f:
