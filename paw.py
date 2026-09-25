@@ -100,6 +100,20 @@ def herdr_pane():
     return {}
 
 
+def workspace_label(ws_id):
+    """Two panes can share a title; the space they sit in is what tells them apart."""
+    if not HERDR or not ws_id:
+        return ""
+    try:
+        out = subprocess.run([HERDR, "workspace", "list"], capture_output=True, timeout=3).stdout
+        for w in json.loads(out)["result"]["workspaces"]:
+            if w.get("workspace_id") == ws_id:
+                return w.get("label") or ""
+    except Exception:
+        pass
+    return ""
+
+
 try:
     personas = json.load(open(os.path.join(DIR, "personas.json")))
     current = open(os.path.join(DIR, "persona")).read().strip()
@@ -121,7 +135,9 @@ try:
             pane_id or "-", bool(HERDR), pane.get("pane_id", "-"), pane.get("tab_id", "-")))
 except Exception:
     pass
-name = pane.get("terminal_title_stripped") or os.path.basename(hook.get("cwd") or os.getcwd())
+title = pane.get("terminal_title_stripped") or os.path.basename(hook.get("cwd") or os.getcwd())
+space = workspace_label(pane.get("workspace_id"))
+name = "%s · %s" % (space, title) if space else title
 # herdr can jump to the exact tab; elsewhere (GoLand, plain Terminal) just raise the app
 app = os.environ.get("__CFBundleIdentifier") or GHOSTTY
 # Raise the terminal first, then focus: activating an app restores its last-used

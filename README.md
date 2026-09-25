@@ -3,7 +3,8 @@
 A menu-bar pet that tells you which Claude Code / Codex sessions need you.
 
 - 🙀 waiting on you · 😸 finished · dimmed while they work · 😴 nothing pending
-- Click a session to jump straight to its terminal tab
+- Each row names the space it's in — `PR review · rider_gateway` — so sibling tabs are
+  told apart; click one to jump straight to its terminal tab
 - The session you're looking at never badges — you're already on it
 - Notification banners with sound, per persona
 - Plan usage for both agents, with reset times
