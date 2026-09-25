@@ -77,24 +77,41 @@ def frontmost():
 
 
 def herdr_pane():
-    """This agent's pane — its live title names the session, its tab is the click target."""
+    """This agent's pane - its live title names the session, its tab is the click target."""
     if not HERDR:
         return {}
+
+    def ask(*args):
+        # herdr reports errors on stderr and leaves stdout empty, so a failed step
+        # must answer "nothing" - raising here would skip every fallback below
+        try:
+            out = subprocess.run([HERDR, *args], capture_output=True, timeout=5).stdout
+            return json.loads(out).get("result") or {}
+        except Exception:
+            return {}
+
     try:
+        # codex's notify chain carries the pane id of wherever its client was first
+        # launched, which is usually long closed - a miss here is not the answer
         if pane_id:
-            out = subprocess.run([HERDR, "pane", "get", pane_id], capture_output=True, timeout=3).stdout
-            return json.loads(out)["result"]["pane"]
-        out = subprocess.run([HERDR, "pane", "list"], capture_output=True, timeout=3).stdout
-        panes = json.loads(out)["result"]["panes"]
+            got = ask("pane", "get", pane_id).get("pane")
+            if got:
+                return got
+        panes = ask("pane", "list").get("panes", [])
         for p in panes:
             if (p.get("agent_session") or {}).get("value") == key:
                 return p
-        # codex panes carry no agent session at all, so fall back to the working
-        # directory - a review pane sits in its own checkout. Ambiguous, skip it.
         here = hook.get("cwd") or os.getcwd()
         same = [p for p in panes if (p.get("foreground_cwd") or p.get("cwd")) == here]
         if len(same) == 1:
             return same[0]
+        # codex panes report no session either, so take the codex agent that just
+        # stopped working: finishing is what fired this notification
+        if (hook.get("agent") or "") == "codex":
+            done = [a for a in ask("agent", "list").get("agents", [])
+                    if a.get("agent") == "codex" and a.get("agent_status") != "working"]
+            if done:
+                return max(done, key=lambda a: a.get("state_change_seq") or 0)
     except Exception:
         pass
     return {}
@@ -124,7 +141,7 @@ skin = personas.get(current) or {"waiting": "🙀", "done": "😸", "sound": "Gl
 pane = herdr_pane()
 # Without HERDR_PANE_ID every codex session keys on "unknown" and they overwrite
 # each other - once the pane is resolved, it is the identity.
-if key == "unknown" and pane.get("pane_id"):
+if not hook.get("session_id") and pane.get("pane_id"):
     key = pane["pane_id"]
     path = os.path.join(DIR, key.replace(":", "-") + ".json")
 # Two guesses at this bug already: record which resolution path actually ran.
