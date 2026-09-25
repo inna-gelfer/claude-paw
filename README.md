@@ -71,7 +71,8 @@ Codex's come from its own session logs. Hiding the rows leaves the numbers updat
 - **No banners** — `brew install terminal-notifier`, then allow its notifications in System Settings.
 - **Glow doesn't appear** — it only fires while a session is waiting or done, never while they work.
 - **No usage numbers** — they land when each agent next runs: Claude on its next statusline render, Codex on its next turn. Readings over a day old are hidden rather than shown as current.
-- **Sessions show a folder name** — that's the no-herdr fallback, working as intended.
+- **Sessions show a folder name, and clicks land on the wrong tab** — paw couldn't find herdr.
+  Expected if it isn't installed; otherwise the hook ran with a PATH that lacks it.
 
 ## Credits
 

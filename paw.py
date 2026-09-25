@@ -7,7 +7,10 @@ import json, os, shutil, subprocess, sys, time
 
 state = sys.argv[1] if len(sys.argv) > 1 else "done"
 DIR = os.path.expanduser("~/.claude/paw")
-HERDR = shutil.which("herdr") or ""
+# codex routes this through its computer-use client, whose PATH has no Homebrew -
+# without the fallback the pane is never found and clicks land on the wrong tab
+HERDR = shutil.which("herdr") or next(
+    (p for p in ("/opt/homebrew/bin/herdr", "/usr/local/bin/herdr") if os.access(p, os.X_OK)), "")
 GHOSTTY = "com.mitchellh.ghostty"
 
 try:
