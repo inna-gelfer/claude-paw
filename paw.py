@@ -104,8 +104,11 @@ pane = herdr_pane()
 name = pane.get("terminal_title_stripped") or os.path.basename(hook.get("cwd") or os.getcwd())
 # herdr can jump to the exact tab; elsewhere (GoLand, plain Terminal) just raise the app
 app = os.environ.get("__CFBundleIdentifier") or GHOSTTY
-focus = ("%s tab focus %s >/dev/null 2>&1; " % (HERDR, pane["tab_id"]) if pane.get("tab_id") else "")
-focus += "open -b %s" % app
+# Raise the terminal first, then focus: activating an app restores its last-used
+# window, which undoes a tab focus that ran before it.
+focus = "open -b %s" % app
+if pane.get("tab_id"):
+    focus += "; %s tab focus %s >/dev/null 2>&1" % (HERDR, pane["tab_id"])
 
 # already looking at this session? then it needs no badge and no banner
 if pane.get("focused") and app == frontmost():
