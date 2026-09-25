@@ -85,9 +85,16 @@ def herdr_pane():
             out = subprocess.run([HERDR, "pane", "get", pane_id], capture_output=True, timeout=3).stdout
             return json.loads(out)["result"]["pane"]
         out = subprocess.run([HERDR, "pane", "list"], capture_output=True, timeout=3).stdout
-        for p in json.loads(out)["result"]["panes"]:
+        panes = json.loads(out)["result"]["panes"]
+        for p in panes:
             if (p.get("agent_session") or {}).get("value") == key:
                 return p
+        # codex panes carry no agent session at all, so fall back to the working
+        # directory - a review pane sits in its own checkout. Ambiguous, skip it.
+        here = hook.get("cwd") or os.getcwd()
+        same = [p for p in panes if (p.get("foreground_cwd") or p.get("cwd")) == here]
+        if len(same) == 1:
+            return same[0]
     except Exception:
         pass
     return {}
@@ -101,6 +108,14 @@ except Exception:
 skin = personas.get(current) or {"waiting": "🙀", "done": "😸", "sound": "Glass"}
 
 pane = herdr_pane()
+# Two guesses at this bug already: record which resolution path actually ran.
+try:
+    with open(os.path.join(DIR, "hook.log"), "a") as f:
+        f.write("%s state=%s agent=%s key=%s env_pane=%s herdr=%s -> pane=%s tab=%s\n" % (
+            time.strftime("%H:%M:%S"), state, hook.get("agent") or "claude", key,
+            pane_id or "-", bool(HERDR), pane.get("pane_id", "-"), pane.get("tab_id", "-")))
+except Exception:
+    pass
 name = pane.get("terminal_title_stripped") or os.path.basename(hook.get("cwd") or os.getcwd())
 # herdr can jump to the exact tab; elsewhere (GoLand, plain Terminal) just raise the app
 app = os.environ.get("__CFBundleIdentifier") or GHOSTTY
