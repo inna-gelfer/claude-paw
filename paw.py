@@ -67,8 +67,8 @@ if state == "clear":
 
 
 def host_app():
-    """Bundle id of the app this session runs inside. IDE terminals set no
-    __CFBundleIdentifier, so walk the process tree to whoever owns it."""
+    """(bundle id, executable) of the app this session runs inside. IDE terminals
+    set no __CFBundleIdentifier, so walk the process tree to whoever owns it."""
     pid = os.getppid()
     for _ in range(8):
         try:
@@ -81,13 +81,13 @@ def host_app():
             bundle = comm.split(".app/Contents/MacOS/")[0] + ".app"
             try:
                 with open(os.path.join(bundle, "Contents", "Info.plist"), "rb") as f:
-                    return plistlib.load(f).get("CFBundleIdentifier", "")
+                    return plistlib.load(f).get("CFBundleIdentifier", ""), comm
             except Exception:
-                return ""
+                return "", ""
         if not parent.strip().isdigit():
-            return ""
+            return "", ""
         pid = int(parent)
-    return ""
+    return "", ""
 
 
 def frontmost():
@@ -177,7 +177,8 @@ title = pane.get("terminal_title_stripped") or os.path.basename(hook.get("cwd") 
 space = workspace_label(pane.get("workspace_id"))
 name = "%s · %s" % (space, title) if space else title
 # herdr can jump to the exact tab; elsewhere (GoLand, plain Terminal) just raise the app
-app = os.environ.get("__CFBundleIdentifier") or host_app() or GHOSTTY
+host_id, host_exe = host_app()
+app = os.environ.get("__CFBundleIdentifier") or host_id or GHOSTTY
 def project_root(path):
     """A JetBrains window is named by its project, which is the repo root."""
     try:
@@ -193,10 +194,12 @@ def project_root(path):
 focus = "open -b %s" % app
 if pane.get("tab_id"):
     focus += "; %s tab focus %s >/dev/null 2>&1" % (HERDR, pane["tab_id"])
-elif app.startswith("com.jetbrains."):
-    # No pane to focus, and IDEs keep one window per project: name the project or
-    # you get whichever window was last in front.
-    focus = "open -b %s %s" % (app, shlex.quote(project_root(hook.get("cwd") or os.getcwd())))
+elif app.startswith("com.jetbrains.") and host_exe:
+    # No pane to focus, and IDEs keep one window per project. `open -b` raises the
+    # app but not the right project, so hand the launcher the path: it forwards to
+    # the running instance and brings that project's window up.
+    focus = "%s %s >/dev/null 2>&1 &" % (shlex.quote(host_exe),
+                                         shlex.quote(project_root(hook.get("cwd") or os.getcwd())))
 
 # already looking at this session? then it needs no badge and no banner
 if pane.get("focused") and app == frontmost():
