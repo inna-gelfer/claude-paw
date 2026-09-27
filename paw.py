@@ -3,7 +3,7 @@
 
 Fed by Claude Code hooks (JSON on stdin) and by the codex notify shim.
 """
-import json, os, shlex, shutil, subprocess, sys, time
+import json, os, plistlib, shlex, shutil, subprocess, sys, time
 
 state = sys.argv[1] if len(sys.argv) > 1 else "done"
 DIR = os.path.expanduser("~/.claude/paw")
@@ -64,6 +64,30 @@ if state == "clear":
     except OSError:
         pass
     sys.exit(0)
+
+
+def host_app():
+    """Bundle id of the app this session runs inside. IDE terminals set no
+    __CFBundleIdentifier, so walk the process tree to whoever owns it."""
+    pid = os.getppid()
+    for _ in range(8):
+        try:
+            out = subprocess.run(["ps", "-o", "ppid=,comm=", "-p", str(pid)],
+                                 capture_output=True, text=True, timeout=2).stdout.strip()
+        except Exception:
+            return ""
+        parent, _, comm = out.partition(" ")
+        if ".app/Contents/MacOS/" in comm:
+            bundle = comm.split(".app/Contents/MacOS/")[0] + ".app"
+            try:
+                with open(os.path.join(bundle, "Contents", "Info.plist"), "rb") as f:
+                    return plistlib.load(f).get("CFBundleIdentifier", "")
+            except Exception:
+                return ""
+        if not parent.strip().isdigit():
+            return ""
+        pid = int(parent)
+    return ""
 
 
 def frontmost():
@@ -153,7 +177,7 @@ title = pane.get("terminal_title_stripped") or os.path.basename(hook.get("cwd") 
 space = workspace_label(pane.get("workspace_id"))
 name = "%s · %s" % (space, title) if space else title
 # herdr can jump to the exact tab; elsewhere (GoLand, plain Terminal) just raise the app
-app = os.environ.get("__CFBundleIdentifier") or GHOSTTY
+app = os.environ.get("__CFBundleIdentifier") or host_app() or GHOSTTY
 def project_root(path):
     """A JetBrains window is named by its project, which is the repo root."""
     try:
