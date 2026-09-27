@@ -101,6 +101,11 @@ def herdr_pane():
         for p in panes:
             if (p.get("agent_session") or {}).get("value") == key:
                 return p
+        # Only sessions with no id of their own need guessing. A claude session
+        # carries one, so no match means it simply is not in herdr - an IDE
+        # terminal, say - and a pane in the same checkout is somebody else.
+        if hook.get("session_id"):
+            return {}
         here = hook.get("cwd") or os.getcwd()
         same = [p for p in panes if (p.get("foreground_cwd") or p.get("cwd")) == here]
         if len(same) == 1:
