@@ -33,6 +33,7 @@ Re-run it to upgrade — it keeps your personas and settings. Uninstall with
 | Codex CLI | badges on turn end, chains to any `notify` you already had |
 | `terminal-notifier` | optional (`brew install terminal-notifier`) — banners with click-to-jump and persona art |
 | [herdr](https://herdr.dev) | optional — real session titles, and clicks land on the exact tab |
+| JetBrains IDEs | sessions in their terminal jump to that project's window, by repo root |
 
 Linux and Windows are not supported.
 

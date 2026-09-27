@@ -3,7 +3,7 @@
 
 Fed by Claude Code hooks (JSON on stdin) and by the codex notify shim.
 """
-import json, os, shutil, subprocess, sys, time
+import json, os, shlex, shutil, subprocess, sys, time
 
 state = sys.argv[1] if len(sys.argv) > 1 else "done"
 DIR = os.path.expanduser("~/.claude/paw")
@@ -149,11 +149,25 @@ space = workspace_label(pane.get("workspace_id"))
 name = "%s · %s" % (space, title) if space else title
 # herdr can jump to the exact tab; elsewhere (GoLand, plain Terminal) just raise the app
 app = os.environ.get("__CFBundleIdentifier") or GHOSTTY
+def project_root(path):
+    """A JetBrains window is named by its project, which is the repo root."""
+    try:
+        out = subprocess.run(["git", "-C", path, "rev-parse", "--show-toplevel"],
+                             capture_output=True, text=True, timeout=3)
+        return out.stdout.strip() or path
+    except Exception:
+        return path
+
+
 # Raise the terminal first, then focus: activating an app restores its last-used
 # window, which undoes a tab focus that ran before it.
 focus = "open -b %s" % app
 if pane.get("tab_id"):
     focus += "; %s tab focus %s >/dev/null 2>&1" % (HERDR, pane["tab_id"])
+elif app.startswith("com.jetbrains."):
+    # No pane to focus, and IDEs keep one window per project: name the project or
+    # you get whichever window was last in front.
+    focus = "open -b %s %s" % (app, shlex.quote(project_root(hook.get("cwd") or os.getcwd())))
 
 # already looking at this session? then it needs no badge and no banner
 if pane.get("focused") and app == frontmost():
