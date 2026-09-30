@@ -70,7 +70,7 @@ def host_app():
     """(bundle id, executable) of the app this session runs inside. IDE terminals
     set no __CFBundleIdentifier, so walk the process tree to whoever owns it."""
     pid = os.getppid()
-    for _ in range(8):
+    for _ in range(16):   # nested agent processes make these trees deep
         try:
             out = subprocess.run(["ps", "-o", "ppid=,comm=", "-p", str(pid)],
                                  capture_output=True, text=True, timeout=2).stdout.strip()
@@ -200,7 +200,9 @@ def project_root(path):
 focus = "open -b %s" % app
 if pane.get("tab_id"):
     focus += "; %s tab focus %s >/dev/null 2>&1" % (HERDR, pane["tab_id"])
-elif app.startswith("com.jetbrains.") and host_exe:
+# host_id must be the app itself: an inherited bundle id from somewhere else
+# would otherwise hand the project path to the wrong launcher.
+elif app.startswith("com.jetbrains.") and host_exe and host_id == app:
     # No pane to focus, and IDEs keep one window per project. `open -b` raises the
     # app but not the right project, so hand the launcher the path: it forwards to
     # the running instance and brings that project's window up.
