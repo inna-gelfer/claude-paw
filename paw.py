@@ -177,8 +177,14 @@ title = pane.get("terminal_title_stripped") or os.path.basename(hook.get("cwd") 
 space = workspace_label(pane.get("workspace_id"))
 name = "%s · %s" % (space, title) if space else title
 # herdr can jump to the exact tab; elsewhere (GoLand, plain Terminal) just raise the app
-host_id, host_exe = host_app()
-app = os.environ.get("__CFBundleIdentifier") or host_id or GHOSTTY
+# codex notifies through its computer-use helper: both the environment and the
+# process tree name that helper, never the terminal the session sits in. Nothing
+# there is worth raising, so fall back to the terminal and let the tab focus work.
+if (hook.get("agent") or "") == "codex":
+    host_id, host_exe, app = "", "", GHOSTTY
+else:
+    host_id, host_exe = host_app()
+    app = os.environ.get("__CFBundleIdentifier") or host_id or GHOSTTY
 def project_root(path):
     """A JetBrains window is named by its project, which is the repo root."""
     try:
