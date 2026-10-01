@@ -137,10 +137,15 @@ def herdr_pane():
         # codex panes report no session either, so take the codex agent that just
         # stopped working: finishing is what fired this notification
         if (hook.get("agent") or "") == "codex":
-            done = [a for a in ask("agent", "list").get("agents", [])
-                    if a.get("agent") == "codex" and a.get("agent_status") != "working"]
-            if done:
-                return max(done, key=lambda a: a.get("state_change_seq") or 0)
+            # Not filtered by status: herdr's view lags the turn-end notification, so
+            # at this moment the session that just finished can still read "working".
+            # Taking the most recently changed one keeps the answer stable across the
+            # two or three notifications a single turn fires - otherwise the same
+            # session lands under two keys and badges twice.
+            agents = [a for a in ask("agent", "list").get("agents", [])
+                      if a.get("agent") == "codex"]
+            if agents:
+                return max(agents, key=lambda a: a.get("state_change_seq") or 0)
     except Exception:
         pass
     return {}
@@ -209,13 +214,26 @@ elif app.startswith("com.jetbrains.") and host_exe and host_id == app:
     focus = "%s %s >/dev/null 2>&1 &" % (shlex.quote(host_exe),
                                          shlex.quote(project_root(hook.get("cwd") or os.getcwd())))
 
+def note(what):  # temporary: chasing codex jumps
+    try:
+        with open(os.path.join(DIR, "hook.log"), "a") as f:
+            f.write("%s %s state=%s agent=%s key=%s env_pane=%s pane=%s tab=%s app=%s\n" % (
+                time.strftime("%H:%M:%S"), what, state, hook.get("agent") or "claude",
+                key, pane_id or "-", pane.get("pane_id", "-"), pane.get("tab_id", "-"), app))
+    except Exception:
+        pass
+
+
 # already looking at this session? then it needs no badge and no banner
 if pane.get("focused") and app == frontmost():
+    note("suppressed-already-looking")
     try:
         os.remove(path)
     except OSError:
         pass
     sys.exit(0)
+
+note("recorded focus=" + focus)
 
 with open(path, "w") as f:
     json.dump({"state": state, "name": name, "at": time.time(), "focus": focus,
