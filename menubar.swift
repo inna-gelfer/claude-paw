@@ -54,7 +54,12 @@ func rows() -> [Row] {
                        file: dir + "/" + f, pane: j["pane"] as? String ?? "",
                        app: j["app"] as? String ?? ""))
     }
-    return out.sorted { $0.at > $1.at }
+    // A team runs its members as separate sessions in the leader's pane, and every
+    // one of them badges. One pane is one thing to go back to: keep the newest.
+    var seen: Set<String> = []
+    return out.sorted { $0.at > $1.at }.filter { r in
+        r.pane.isEmpty || seen.insert(r.pane).inserted
+    }
 }
 
 /// A session you are looking at right now is one you have already seen - drop it.
@@ -235,6 +240,9 @@ func updateBadge() {
     let live = counts[0] > 0 ? "waiting" : (counts[1] > 0 ? "done" : (counts[2] > 0 ? "working" : "idle"))
     let n = counts.first(where: { $0 > 0 }) ?? 0
     guard let b = item.button else { return }
+    // Claim a slot explicitly: without this macOS can leave the item unplaced and
+    // there is nothing to find in the menu bar at all.
+    item.isVisible = true
     pending = live == "waiting" || live == "done"
     let mode = attention()
     baseAlpha = pending ? 1 : 0.55

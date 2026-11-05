@@ -24,7 +24,12 @@ chmod +x "$DIR/codex-notify.py" "$DIR/paw-status.py" "$DIR/uninstall.sh" "$HOME/
 [ -f "$DIR/persona" ] || echo cat > "$DIR/persona"
 
 echo "==> building menu bar app"
-swiftc -O -o "$DIR/paw" "$DIR/menubar.swift"
+# Never compile over the running binary: replacing a mapped image invalidates its
+# signature and macOS kills the app (OS_REASON_CODESIGNING). Build aside, sign,
+# then swap the inode.
+swiftc -O -o "$DIR/paw.new" "$DIR/menubar.swift"
+codesign --force --sign - "$DIR/paw.new" >/dev/null 2>&1 || true
+mv -f "$DIR/paw.new" "$DIR/paw"
 
 echo "==> registering hooks in settings.json"
 python3 - "$HOME" <<'PY'
