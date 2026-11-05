@@ -104,15 +104,13 @@ cat > "$PLIST" <<PLISTEOF
   <key>KeepAlive</key><true/>
 </dict></plist>
 PLISTEOF
-# bootout is async, so a bootstrap right behind it loses the race with an
-# "Input/output error" - restart in place when the job is already registered
-if launchctl print "gui/$UID/com.paw.badge" >/dev/null 2>&1; then
-  launchctl kickstart -k "gui/$UID/com.paw.badge"
-else
-  launchctl bootstrap "gui/$UID" "$PLIST" 2>/dev/null ||
-    { launchctl bootout "gui/$UID/com.paw.badge" 2>/dev/null; sleep 1
-      launchctl bootstrap "gui/$UID" "$PLIST"; }
-fi
+# Always a full reload: kickstart keeps the loaded job, so an edited plist never
+# takes and a job wedged in EX_CONFIG stays wedged. bootout is async, hence the retry.
+launchctl bootout "gui/$UID/com.paw.badge" 2>/dev/null || true
+for _ in 1 2 3 4 5; do
+  launchctl bootstrap "gui/$UID" "$PLIST" 2>/dev/null && break
+  sleep 1
+done
 
 command -v terminal-notifier >/dev/null || echo "!! brew install terminal-notifier  (for banners with click-to-jump)"
 command -v herdr >/dev/null || echo "!! no herdr: sessions show their folder name, clicks raise the app not the tab"
