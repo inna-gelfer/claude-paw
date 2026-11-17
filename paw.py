@@ -3,7 +3,7 @@
 
 Fed by Claude Code hooks (JSON on stdin) and by the codex notify shim.
 """
-import json, os, plistlib, shlex, shutil, subprocess, sys, time
+import glob, json, os, plistlib, shlex, shutil, subprocess, sys, time
 
 state = sys.argv[1] if len(sys.argv) > 1 else "done"
 DIR = os.path.expanduser("~/.claude/paw")
@@ -165,6 +165,23 @@ def workspace_label(ws_id):
     return ""
 
 
+def desktop_title():
+    """Claude desktop sessions have no pane; the app keeps their sidebar title on disk."""
+    sid = hook.get("session_id")
+    if not sid:
+        return ""
+    for f in glob.glob(os.path.expanduser(
+            "~/Library/Application Support/Claude/claude-code-sessions/*/*/local_*.json")):
+        try:
+            with open(f) as fh:
+                s = fh.read()
+            if sid in s and json.loads(s).get("cliSessionId") == sid:
+                return json.loads(s).get("title") or ""
+        except Exception:
+            pass
+    return ""
+
+
 try:
     personas = json.load(open(os.path.join(DIR, "personas.json")))
     current = open(os.path.join(DIR, "persona")).read().strip()
@@ -178,7 +195,8 @@ pane = herdr_pane()
 if not hook.get("session_id") and pane.get("pane_id"):
     key = pane["pane_id"]
     path = os.path.join(DIR, key.replace(":", "-") + ".json")
-title = pane.get("terminal_title_stripped") or os.path.basename(hook.get("cwd") or os.getcwd())
+title = (pane.get("terminal_title_stripped") or desktop_title()
+         or os.path.basename(hook.get("cwd") or os.getcwd()))
 space = workspace_label(pane.get("workspace_id"))
 name = "%s · %s" % (space, title) if space else title
 # herdr can jump to the exact tab; elsewhere (GoLand, plain Terminal) just raise the app
