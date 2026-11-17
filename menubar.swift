@@ -18,7 +18,7 @@ func persona() -> (String, [String: Any]) {
 }
 
 struct Row { let state: String, name: String, at: Double, focus: String, file: String,
-              pane: String, app: String }
+              pane: String, app: String, desktop: String }
 
 let herdrBin = ["/opt/homebrew/bin/herdr", "/usr/local/bin/herdr"]
     .first { FileManager.default.isExecutableFile(atPath: $0) }
@@ -52,7 +52,7 @@ func rows() -> [Row] {
                        name: (j["name"] as? String ?? "?") + (agent == "claude" ? "" : " · " + agent),
                        at: j["at"] as? Double ?? 0, focus: j["focus"] as? String ?? "",
                        file: dir + "/" + f, pane: j["pane"] as? String ?? "",
-                       app: j["app"] as? String ?? ""))
+                       app: j["app"] as? String ?? "", desktop: j["desktop"] as? String ?? ""))
     }
     // A team runs its members as separate sessions in the leader's pane, and every
     // one of them badges. One pane is one thing to go back to: keep the newest.
@@ -64,7 +64,13 @@ func rows() -> [Row] {
 
 /// A session you are looking at right now is one you have already seen - drop it.
 func visibleRows() -> [Row] {
-    let all = rows()
+    // desktop sessions: opened in the app since they badged (lastFocusedAt is ms)
+    let all = rows().filter { r in
+        guard !r.desktop.isEmpty, (json(r.desktop)["lastFocusedAt"] as? Double ?? 0) / 1000 > r.at
+        else { return true }
+        try? FileManager.default.removeItem(atPath: r.file)
+        return false
+    }
     let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""
     guard all.contains(where: { $0.app == front && !$0.pane.isEmpty }) else { return all }
     let focused = focusedPane()

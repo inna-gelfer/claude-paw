@@ -3,7 +3,7 @@
 
 Fed by Claude Code hooks (JSON on stdin) and by the codex notify shim.
 """
-import glob, json, os, plistlib, shlex, shutil, subprocess, sys, time
+import glob, json, os, plistlib, re, shlex, shutil, subprocess, sys, time
 
 state = sys.argv[1] if len(sys.argv) > 1 else "done"
 DIR = os.path.expanduser("~/.claude/paw")
@@ -12,6 +12,7 @@ DIR = os.path.expanduser("~/.claude/paw")
 HERDR = shutil.which("herdr") or next(
     (p for p in ("/opt/homebrew/bin/herdr", "/usr/local/bin/herdr") if os.access(p, os.X_OK)), "")
 GHOSTTY = "com.mitchellh.ghostty"
+CLAUDE = "com.anthropic.claudefordesktop"
 
 try:
     hook = json.load(sys.stdin)
@@ -95,7 +96,9 @@ def frontmost():
     try:
         out = subprocess.run('lsappinfo info -only bundleID "$(lsappinfo front)"',
                              shell=True, capture_output=True, timeout=2).stdout.decode()
-        return out.split("=")[-1].strip().strip('"')
+        # newer macOS prints the front ASN's other fields too, each with its own "="
+        m = re.search(r'bundleID="([^"]+)"', out)
+        return m.group(1) if m else ""
     except Exception:
         return ""
 
@@ -165,21 +168,27 @@ def workspace_label(ws_id):
     return ""
 
 
-def desktop_title():
-    """Claude desktop sessions have no pane; the app keeps their sidebar title on disk."""
+def desktop_session():
+    """Claude desktop sessions have no pane; the app keeps each one's title and
+    last focus on disk. Returns this session's record plus "newest": whether it is
+    the one most recently focused, i.e. the one open in the app now."""
     sid = hook.get("session_id")
+    mine, newest = {}, 0
     if not sid:
-        return ""
+        return {}
     for f in glob.glob(os.path.expanduser(
             "~/Library/Application Support/Claude/claude-code-sessions/*/*/local_*.json")):
         try:
             with open(f) as fh:
-                s = fh.read()
-            if sid in s and json.loads(s).get("cliSessionId") == sid:
-                return json.loads(s).get("title") or ""
+                d = json.load(fh)
         except Exception:
-            pass
-    return ""
+            continue
+        newest = max(newest, d.get("lastFocusedAt") or 0)
+        if d.get("cliSessionId") == sid:
+            mine = dict(d, file=f)
+    if mine:
+        mine["newest"] = (mine.get("lastFocusedAt") or 0) >= newest
+    return mine
 
 
 try:
@@ -195,10 +204,13 @@ pane = herdr_pane()
 if not hook.get("session_id") and pane.get("pane_id"):
     key = pane["pane_id"]
     path = os.path.join(DIR, key.replace(":", "-") + ".json")
-title = (pane.get("terminal_title_stripped") or desktop_title()
+desk = {} if pane else desktop_session()
+title = (pane.get("terminal_title_stripped") or desk.get("title")
          or os.path.basename(hook.get("cwd") or os.getcwd()))
 space = workspace_label(pane.get("workspace_id"))
 name = "%s · %s" % (space, title) if space else title
+if (hook.get("agent") or "claude") == "claude":
+    name += " · desktop" if desk else " · cli"
 # herdr can jump to the exact tab; elsewhere (GoLand, plain Terminal) just raise the app
 # codex notifies through its computer-use helper: both the environment and the
 # process tree name that helper, never the terminal the session sits in. Nothing
@@ -231,6 +243,11 @@ elif app.startswith("com.jetbrains.") and host_exe and host_id == app:
     # the running instance and brings that project's window up.
     focus = "%s %s >/dev/null 2>&1 &" % (shlex.quote(host_exe),
                                          shlex.quote(project_root(hook.get("cwd") or os.getcwd())))
+if desk.get("sessionId"):
+    # the app's own deep link selects the session, not just the window
+    app = CLAUDE
+    focus = "open %s" % shlex.quote(
+        "claude://code/continue?session=%s&source=desktop_action" % desk["sessionId"])
 
 def note(what):  # temporary: chasing codex jumps
     try:
@@ -243,7 +260,7 @@ def note(what):  # temporary: chasing codex jumps
 
 
 # already looking at this session? then it needs no badge and no banner
-if pane.get("focused") and app == frontmost():
+if (pane.get("focused") or desk.get("newest")) and app == frontmost():
     note("suppressed-already-looking")
     try:
         os.remove(path)
@@ -255,7 +272,7 @@ note("recorded focus=" + focus)
 
 with open(path, "w") as f:
     json.dump({"state": state, "name": name, "at": time.time(), "focus": focus,
-               "pane": pane.get("pane_id", ""), "app": app,
+               "pane": pane.get("pane_id", ""), "app": app, "desktop": desk.get("file", ""),
                "agent": hook.get("agent") or "claude"}, f)
 
 if state == "working":
